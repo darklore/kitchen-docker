@@ -80,7 +80,7 @@ module Kitchen
       def create(state)
         state[:image_id] = build_image(state) unless state[:image_id]
         state[:container_id] = run_container(state) unless state[:container_id]
-        state[:hostname] = remote_socket? ? socket_uri.host : 'localhost'
+        state[:hostname] = remote_socket? ? socket_uri.host : gateway_ip
         state[:port] = container_ssh_port(state)
         wait_for_sshd(state[:hostname], nil, :port => state[:port])
       end
@@ -242,6 +242,17 @@ module Kitchen
 
       def container_exists?(state)
         state[:container_id] && !!inspect_container(state) rescue false
+      end
+
+      def gateway_ip(state)
+        output = inspect_container(state)
+        begin
+          info = Array(::JSON.parse(output)).first
+          info['NetworkSettings']['Gateway']
+        rescue
+          raise ActionFailed,
+          'Could not parse Docker inspect output for container gateway address'
+        end
       end
 
       def parse_container_ssh_port(output)
